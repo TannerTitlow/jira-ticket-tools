@@ -1,12 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${script_dir}/lib/ui.sh"
+
 usage() {
-  printf 'Usage: %s\n' "$0"
+  printf 'Usage: %s [--force] [--quiet] [--no-color] [--no-anim]\n' "$0"
 }
 
-if [[ $# -gt 0 ]]; then
+force=false
+quiet=false
+no_color=false
+no_anim=false
+
+while [[ $# -gt 0 ]]; do
   case "$1" in
+    --force)
+      force=true
+      shift
+      ;;
+    --quiet)
+      quiet=true
+      shift
+      ;;
+    --no-color)
+      no_color=true
+      shift
+      ;;
+    --no-anim)
+      no_anim=true
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -17,17 +42,52 @@ if [[ $# -gt 0 ]]; then
       exit 1
       ;;
   esac
-fi
+done
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/.." && pwd)"
+show_env_hint="${JTT_SHOW_ENV_HINT:-1}"
+
+if [[ "$quiet" == true ]]; then
+  export JTT_QUIET=1
+fi
+if [[ "$no_color" == true ]]; then
+  export JTT_NO_COLOR=1
+fi
+if [[ "$no_anim" == true ]]; then
+  export JTT_NO_ANIM=1
+fi
+ui_init
 
 source_dir="${repo_root}/cursor/skills"
 target_dir="${HOME}/.cursor/skills"
+required_files=(
+  "$target_dir/jira-plan/SKILL.md"
+  "$target_dir/jira-plan/scripts/ensure-export.sh"
+  "$target_dir/jira-review/SKILL.md"
+  "$target_dir/jira-review/scripts/require-export.sh"
+)
 
 if [[ ! -d "$source_dir" ]]; then
-  printf 'Source skills directory not found: %s\n' "$source_dir" >&2
+  ui_error "Source skills directory not found: $source_dir"
   exit 1
+fi
+
+all_present=true
+for path in "${required_files[@]}"; do
+  if [[ ! -f "$path" ]]; then
+    all_present=false
+    break
+  fi
+done
+
+if [[ "$all_present" == true && "$force" != true ]]; then
+  ui_ok "Cursor integration already installed at $target_dir"
+  ui_info "Nothing to do."
+  exit 0
+fi
+
+if [[ "$force" == true ]]; then
+  ui_info "Force reinstall enabled for Cursor integration."
 fi
 
 mkdir -p "$target_dir"
@@ -41,10 +101,13 @@ cp -R "$source_dir/jira-review" "$target_dir/jira-review"
 chmod +x "$target_dir/jira-plan/scripts/ensure-export.sh"
 chmod +x "$target_dir/jira-review/scripts/require-export.sh"
 
-printf 'Installed Cursor skills into %s\n' "$target_dir"
-printf 'Set JIRA_TICKET_TOOLS_DIR to this repo for portability:\n'
-printf '  export JIRA_TICKET_TOOLS_DIR="%s"\n' "$repo_root"
-printf 'Persist it for future shells:\n'
-printf '  echo '\''export JIRA_TICKET_TOOLS_DIR="%s"'\'' >> ~/.bashrc\n' "$repo_root"
-printf '  # or use ~/.zshrc for zsh\n'
-printf 'Restart Cursor to reload skills.\n'
+ui_ok "Installed Cursor skills into $target_dir"
+if [[ "$show_env_hint" == "1" && -z "${JIRA_TICKET_TOOLS_DIR:-}" ]]; then
+  ui_info "Set JIRA_TICKET_TOOLS_DIR for portability:"
+  if [[ "${JTT_QUIET:-0}" != "1" ]]; then
+    printf '  export JIRA_TICKET_TOOLS_DIR="%s"\n' "$repo_root"
+    printf '  echo '\''export JIRA_TICKET_TOOLS_DIR="%s"'\'' >> ~/.bashrc\n' "$repo_root"
+    printf '  # or use ~/.zshrc for zsh\n'
+  fi
+fi
+ui_info "Restart Cursor to reload skills."

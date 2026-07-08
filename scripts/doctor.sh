@@ -3,18 +3,30 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/.." && pwd)"
+# shellcheck disable=SC1091
+source "${script_dir}/lib/ui.sh"
 
 quiet=false
+no_color=false
+no_anim=false
 selected_providers=()
 
 usage() {
-  printf 'Usage: %s [--quiet] [--provider opencode|claude|cursor]\n' "$0"
+  printf 'Usage: %s [--quiet] [--no-color] [--no-anim] [--provider opencode|claude|cursor]\n' "$0"
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --quiet)
       quiet=true
+      shift
+      ;;
+    --no-color)
+      no_color=true
+      shift
+      ;;
+    --no-anim)
+      no_anim=true
       shift
       ;;
     --provider)
@@ -51,6 +63,17 @@ if [[ ${#selected_providers[@]} -eq 0 ]]; then
   selected_providers=(opencode claude cursor)
 fi
 
+if [[ "$quiet" == true ]]; then
+  export JTT_QUIET=1
+fi
+if [[ "$no_color" == true ]]; then
+  export JTT_NO_COLOR=1
+fi
+if [[ "$no_anim" == true ]]; then
+  export JTT_NO_ANIM=1
+fi
+ui_init
+
 has_provider() {
   local target="$1"
   local p
@@ -69,18 +92,22 @@ fail_count=0
 print_ok() {
   ok_count=$((ok_count + 1))
   if [[ "$quiet" != true ]]; then
-    printf '[OK] %s\n' "$1"
+    ui_ok "$1"
   fi
 }
 
 print_warn() {
   warn_count=$((warn_count + 1))
-  printf '[WARN] %s\n' "$1"
+  if [[ "$quiet" == true ]]; then
+    printf '%b[WARN]%b %s\n' "$UI_YELLOW" "$UI_RESET" "$1"
+  else
+    ui_warn "$1"
+  fi
 }
 
 print_fail() {
   fail_count=$((fail_count + 1))
-  printf '[FAIL] %s\n' "$1"
+  ui_error "$1"
 }
 
 check_command() {
@@ -125,8 +152,9 @@ check_env_var() {
 }
 
 if [[ "$quiet" != true ]]; then
-  printf 'jira-ticket-tools doctor\n'
-  printf 'Repo: %s\n\n' "$repo_root"
+  ui_header "jira-ticket-tools doctor"
+  ui_info "Repo: $repo_root"
+  printf '\n'
 fi
 
 check_command bash

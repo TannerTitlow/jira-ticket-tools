@@ -62,12 +62,17 @@ For zsh, use `~/.zshrc` instead of `~/.bashrc`.
 - `./scripts/install-ai-integrations.sh` installs OpenCode + Claude Code + Cursor
 - `./scripts/install-ai-integrations.sh --cursor` installs only Cursor
 - `./scripts/install-ai-integrations.sh --opencode --cursor` installs a subset
+- `./scripts/install-ai-integrations.sh --force` reinstalls selected integrations even if already installed
+- `./scripts/install-ai-integrations.sh --quiet` minimal output
+- `./scripts/install-ai-integrations.sh --no-color --no-anim` disable styling/animation
 
 Direct installers are also available:
 
 - `./scripts/install-opencode-integration.sh`
 - `./scripts/install-claude-code-integration.sh`
 - `./scripts/install-cursor-integration.sh`
+
+All installers also support `--force`, `--quiet`, `--no-color`, and `--no-anim`.
 
 ## Workflow behavior
 
@@ -96,6 +101,8 @@ Direct installers are also available:
 - `scripts/export-issues-xml-bulk.sh`: bulk XML export from issue key file
 - `scripts/doctor.sh`: checks local dependencies, Jira env vars, and installed AI integrations
 
+Most shell scripts support output-control flags for cleaner terminal UX: `--quiet`, `--no-color`, and `--no-anim`.
+
 ## Repository integration packages
 
 - OpenCode: `opencode/`
@@ -121,6 +128,7 @@ Useful options:
 ```bash
 ./scripts/doctor.sh --provider cursor
 ./scripts/doctor.sh --provider opencode --quiet
+./scripts/doctor.sh --provider cursor --no-color --no-anim
 ```
 
 The doctor script reports:

@@ -74,6 +74,8 @@ Use selector flags when needed:
 ```bash
 ./scripts/install-ai-integrations.sh --cursor
 ./scripts/install-ai-integrations.sh --opencode --claude
+./scripts/install-ai-integrations.sh --opencode --force
+./scripts/install-ai-integrations.sh --all --quiet
 ```
 
 Or run provider-specific installers directly:
@@ -81,6 +83,9 @@ Or run provider-specific installers directly:
 - `./scripts/install-opencode-integration.sh`
 - `./scripts/install-claude-code-integration.sh`
 - `./scripts/install-cursor-integration.sh`
+
+Use `--force` with any installer to reinstall templates even when already installed.
+Use `--quiet` for minimal logs, and `--no-color --no-anim` for plain output.
 
 ## Verify setup
 
