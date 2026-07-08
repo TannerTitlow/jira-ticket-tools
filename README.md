@@ -2,6 +2,10 @@
 
 <div align="center">
 
+<a href="https://github.com/TannerTitlow/jira-ticket-tools" aria-label="Jira Ticket Tools repository">
+  <img src="https://raw.githubusercontent.com/TannerTitlow/jira-ticket-tools/main/.github/assets/jtt-logo.png" alt="Jira Ticket Tools logo" width="360" />
+</a>
+
 [![CI][badge_ci]][url_ci]
 [![License: MIT][badge_license]][url_license]
 [![Platform][badge_platform]][url_repo]
@@ -15,17 +19,19 @@ Install one CLI, configure once, and enable `/jira-plan` + `/jira-review` across
 
 </div>
 
-## Table of contents
-
-- [Why this exists](#why-this-exists)
-- [Quick start](#quick-start)
-- [Workflow overview](#workflow-overview)
-- [Commands and behavior](#commands-and-behavior)
-- [CLI reference](#cli-reference)
-- [Troubleshooting](#troubleshooting)
-- [CI and local quality checks](#ci-and-local-quality-checks)
-- [Contributing](#contributing)
-- [License](#license)
+<div align="center">
+  <sub>
+    <a href="#why-this-exists">Why this exists</a> •
+    <a href="#quick-start">Quick start</a> •
+    <a href="#workflow-overview">Workflow overview</a> •
+    <a href="#commands-and-behavior">Commands and behavior</a> •
+    <a href="#cli-reference">CLI reference</a> •
+    <a href="#troubleshooting">Troubleshooting</a> •
+    <a href="#ci-and-local-quality-checks">CI and local quality checks</a> •
+    <a href="#contributing">Contributing</a> •
+    <a href="#license">License</a>
+  </sub>
+</div>
 
 ## Why this exists
 
