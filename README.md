@@ -1,5 +1,7 @@
 # jira-ticket-tools
 
+[![CI](https://github.com/TannerTitlow/jira-ticket-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/TannerTitlow/jira-ticket-tools/actions/workflows/ci.yml)
+
 Jira export automation for engineering workflows.
 
 This project turns Jira issues into clean markdown artifacts (with downloaded images), then plugs that artifact into AI-driven planning/review flows like `/jira-plan` and `/jira-review`.
