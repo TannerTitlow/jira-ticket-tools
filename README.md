@@ -89,30 +89,38 @@ If you use zsh, update `~/.zshrc` instead of `~/.bashrc`.
 /jira-review PROJ-1234
 ```
 
+> [!TIP]
+> You can start with `/jira-plan` even if no markdown export exists yet. The command can create `docs/jira-exports/<ISSUE_KEY>/<ISSUE_KEY>.md` on demand.
+
 ## Workflow overview
 
 ```mermaid
 flowchart LR
-  A[Jira issue] --> B[get-issue-json.sh]
-  B --> C[issue-json-to-md.py]
-  C --> D[docs/jira-exports/ISSUE/ISSUE.md]
-  D --> E[/jira-plan]
-  D --> F[/jira-review]
-  E --> G[Implementation plan]
-  F --> H[Review report appended]
+  A["User runs /jira-plan ISSUE_KEY"] --> B{"Export exists?"}
+  B -- "Yes" --> C["Read docs/jira-exports/ISSUE/ISSUE.md"]
+  B -- "No" --> D["Auto-export via get-issue-md.sh"]
+  D --> C
+  C --> E["Return implementation plan"]
+  C --> F["User runs /jira-review ISSUE_KEY"]
+  F --> G["Append review report to issue markdown"]
+
+  H["Manual export path (optional)"] --> I["get-issue-json.sh"]
+  I --> J["issue-json-to-md.py"]
+  J --> C
 ```
 
 ### Lifecycle
 
-1. Export ticket context once.
-2. Plan implementation against real code.
-3. Review implementation coverage against the same artifact.
+1. Start with `/jira-plan` (typical path).
+2. Auto-export happens only when needed.
+3. `/jira-review` appends coverage status to the same artifact.
+4. Manual export scripts remain available for standalone usage.
 
 ## Commands and behavior
 
 ### `/jira-plan <ISSUE_KEY>`
 
-- Ensures `docs/jira-exports/<ISSUE_KEY>/<ISSUE_KEY>.md` exists (creates if missing).
+- Ensures `docs/jira-exports/<ISSUE_KEY>/<ISSUE_KEY>.md` exists (creates if missing via `get-issue-md.sh`).
 - Extracts scope, acceptance criteria, and constraints from the export.
 - Produces a codebase-specific implementation plan.
 - If implementation happens in-session, ends with reconciliation: `Implemented`, `Discussed`, `Open`.
