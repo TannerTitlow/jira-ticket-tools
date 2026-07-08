@@ -46,7 +46,7 @@ git clone <repo-url>
 cd jira-ticket-tools
 
 pnpm install
-pnpm link --global
+npm install -g .
 
 jtt setup \
   --jira-base https://your-domain.atlassian.net \
@@ -61,7 +61,7 @@ git clone <repo-url>
 cd jira-ticket-tools
 
 pnpm install
-pnpm link --global
+npm install -g .
 
 jtt setup \
   --jira-base https://your-domain.atlassian.net \
@@ -76,7 +76,7 @@ git clone <repo-url>
 cd jira-ticket-tools
 
 pnpm install
-pnpm link --global
+npm install -g .
 
 jtt setup --jira-base https://your-domain.atlassian.net --jira-email you@company.com --jira-api-token your-token
 ```
