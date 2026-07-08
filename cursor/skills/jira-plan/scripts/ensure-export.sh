@@ -16,7 +16,7 @@ if [[ -f "$issue_md" ]]; then
 fi
 
 if ! command -v jtt >/dev/null 2>&1; then
-  printf 'jira-ticket-tools CLI not found on PATH. Install the package so `jtt` is available.\n' >&2
+  printf 'jira-ticket-tools CLI not found on PATH. Install the package so jtt is available.\n' >&2
   exit 1
 fi
 
