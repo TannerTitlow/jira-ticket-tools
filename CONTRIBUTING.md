@@ -1,6 +1,29 @@
 # Contributing
 
-Thanks for contributing to `jira-ticket-tools`.
+<div align="center">
+
+Thanks for helping improve `jira-ticket-tools`.
+
+Keep changes practical, portable, and easy for teammates to adopt.
+
+</div>
+
+## Table of contents
+
+- [Contribution principles](#contribution-principles)
+- [Prerequisites](#prerequisites)
+- [Bootstrap by platform](#bootstrap-by-platform)
+- [Install provider-specific integrations](#install-provider-specific-integrations)
+- [Verify your setup](#verify-your-setup)
+- [Local quality checks](#local-quality-checks)
+- [Updating integration templates](#updating-integration-templates)
+
+## Contribution principles
+
+- Keep integrations provider-agnostic and org-neutral.
+- Prefer clear CLI UX and deterministic script behavior.
+- Preserve `/jira-review` as documentation-only behavior.
+- Keep docs updated when commands, flags, or workflows change.
 
 ## Prerequisites
 
@@ -11,9 +34,12 @@ Thanks for contributing to `jira-ticket-tools`.
 - Jira API token
 - At least one AI tool: OpenCode, Claude Code, or Cursor
 
-## New teammate bootstrap
+## Bootstrap by platform
 
-## Linux/macOS (bash)
+> [!TIP]
+> Set and persist `JIRA_TICKET_TOOLS_DIR` so integrations work from any project directory.
+
+### Linux/macOS (bash)
 
 ```bash
 git clone <repo-url>
@@ -28,7 +54,7 @@ echo 'export JIRA_TICKET_TOOLS_DIR="$(pwd)"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-## macOS/Linux (zsh)
+### macOS/Linux (zsh)
 
 ```bash
 git clone <repo-url>
@@ -43,7 +69,7 @@ echo 'export JIRA_TICKET_TOOLS_DIR="$(pwd)"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-## Windows (PowerShell)
+### Windows (PowerShell)
 
 ```powershell
 git clone <repo-url>
@@ -61,15 +87,15 @@ bash ./scripts/install-ai-integrations.sh
 )
 ```
 
-Then restart terminal and your AI tool.
+Restart terminal and your AI tool after setting env vars.
 
-## Windows (WSL)
+### Windows (WSL)
 
-Use the Linux/macOS (bash) steps inside WSL.
+Use the Linux/macOS (bash) flow inside WSL.
 
-## Installing specific AI providers
+## Install provider-specific integrations
 
-Use selector flags when needed:
+Use unified installer flags when needed:
 
 ```bash
 ./scripts/install-ai-integrations.sh --cursor
@@ -78,18 +104,21 @@ Use selector flags when needed:
 ./scripts/install-ai-integrations.sh --all --quiet
 ```
 
-Or run provider-specific installers directly:
+Or run provider scripts directly:
 
 - `./scripts/install-opencode-integration.sh`
 - `./scripts/install-claude-code-integration.sh`
 - `./scripts/install-cursor-integration.sh`
 
-Use `--force` with any installer to reinstall templates even when already installed.
-Use `--quiet` for minimal logs, and `--no-color --no-anim` for plain output.
+Supported installer flags:
 
-## Verify setup
+- `--force` to reinstall even when already installed
+- `--quiet` for minimal logs
+- `--no-color --no-anim` for plain terminal output
 
-From any repo where you want Jira planning:
+## Verify your setup
+
+From any repository where Jira planning is needed:
 
 ```text
 /jira-plan PROJ-1234
@@ -101,7 +130,7 @@ For documentation-only reconciliation:
 /jira-review PROJ-1234
 ```
 
-Run diagnostics if something is off:
+If anything looks off, run diagnostics:
 
 ```bash
 ./scripts/doctor.sh
@@ -110,7 +139,7 @@ Run diagnostics if something is off:
 
 ## Local quality checks
 
-Run the same checks used in CI:
+Run the same checks used by CI:
 
 ```bash
 bash ./scripts/ci-checks.sh
@@ -119,7 +148,7 @@ bash ./scripts/run-shellcheck.sh
 
 ## Updating integration templates
 
-When you update these template assets:
+When you change any integration template:
 
 - `opencode/commands/jira-plan.md`
 - `opencode/commands/jira-review.md`
@@ -130,7 +159,7 @@ When you update these template assets:
 - `cursor/skills/jira-plan/SKILL.md`
 - `cursor/skills/jira-review/SKILL.md`
 
-rerun the installer(s), then restart your AI tool:
+Reinstall and restart your AI tool:
 
 ```bash
 ./scripts/install-ai-integrations.sh

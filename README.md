@@ -1,29 +1,59 @@
 # jira-ticket-tools
 
-[![CI](https://github.com/TannerTitlow/jira-ticket-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/TannerTitlow/jira-ticket-tools/actions/workflows/ci.yml)
+<div align="center">
+
+[![CI][badge_ci]][url_ci]
+[![License: MIT][badge_license]][url_license]
+[![Platform][badge_platform]][url_repo]
+[![Language][badge_language]][url_repo]
 
 Jira export automation for engineering workflows.
 
-This project turns Jira issues into clean markdown artifacts (with downloaded images), then plugs that artifact into AI-driven planning/review flows like `/jira-plan` and `/jira-review`.
+Turn Jira issues into rich markdown artifacts, then drive reliable AI planning and review workflows across OpenCode, Claude Code, and Cursor.
 
-For OS-specific onboarding, see [CONTRIBUTING.md](CONTRIBUTING.md).
+<strong>One source of truth for ticket context → planning → review.</strong>
 
-## What you get
+</div>
 
-- One-command Jira export to `docs/jira-exports/<ISSUE_KEY>/<ISSUE_KEY>.md`
-- Description rendering that preserves Jira structure as markdown (headings, lists, tables, code blocks, panels, links)
-- Image attachment download into `assets/` with local links in markdown
-- Integration packages for OpenCode, Claude Code, and Cursor Skills
+## Table of contents
+
+- [Why this exists](#why-this-exists)
+- [Quick start](#quick-start)
+- [Workflow overview](#workflow-overview)
+- [Commands and behavior](#commands-and-behavior)
+- [Install options](#install-options)
+- [Script reference](#script-reference)
+- [Troubleshooting](#troubleshooting)
+- [CI and local quality checks](#ci-and-local-quality-checks)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Why this exists
+
+> [!TIP]
+> If your implementation conversations keep drifting away from Jira acceptance criteria, this repo gives you a repeatable way to keep engineering and ticket intent aligned.
+
+Jira issues usually contain the best implementation context, but that context often gets fragmented across chat, PR comments, and ad hoc notes. `jira-ticket-tools` keeps ticket context in-repo as a durable markdown artifact, so planning and review workflows stay auditable, repeatable, and tool-agnostic.
+
+### At a glance
+
+- Export Jira issues into structured markdown with local asset links.
+- Reuse the same artifact across planning and review workflows.
+- Keep AI integrations synchronized across OpenCode, Claude Code, and Cursor.
+- Validate setup and integrations with doctor + CI smoke checks.
 
 ## Quick start
 
-1) Configure Jira auth:
+> [!NOTE]
+> Need full onboarding by OS? Use `CONTRIBUTING.md`.
+
+### 1) Configure Jira auth
 
 ```bash
 cp .env.example .env
 ```
 
-Fill `.env` with:
+Populate `.env`:
 
 ```bash
 JIRA_BASE="https://your-domain.atlassian.net"
@@ -31,93 +61,128 @@ JIRA_EMAIL="you@company.com"
 JIRA_API_TOKEN="your-token"
 ```
 
-2) Export one issue to markdown:
+### 2) Export one issue to markdown
 
 ```bash
 ./scripts/get-issue-md.sh PROJ-1234 ./docs/jira-exports/PROJ-1234/PROJ-1234.md
 ```
 
-3) Install AI integrations (all providers by default):
+### 3) Install AI integrations
 
 ```bash
 ./scripts/install-ai-integrations.sh
 ```
 
-4) Set tools path (persist it in your shell profile):
+### 4) Persist tools path (recommended)
 
 ```bash
 echo 'export JIRA_TICKET_TOOLS_DIR="/absolute/path/to/jira-ticket-tools"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-For zsh, use `~/.zshrc` instead of `~/.bashrc`.
+If you use zsh, update `~/.zshrc` instead of `~/.bashrc`.
 
-5) Restart your AI tool and run:
+### 5) Run commands in your AI tool
 
 ```text
 /jira-plan PROJ-1234
 /jira-review PROJ-1234
 ```
 
-## AI integration options
+## Workflow overview
 
-- `./scripts/install-ai-integrations.sh` installs OpenCode + Claude Code + Cursor
-- `./scripts/install-ai-integrations.sh --cursor` installs only Cursor
-- `./scripts/install-ai-integrations.sh --opencode --cursor` installs a subset
-- `./scripts/install-ai-integrations.sh --force` reinstalls selected integrations even if already installed
-- `./scripts/install-ai-integrations.sh --quiet` minimal output
-- `./scripts/install-ai-integrations.sh --no-color --no-anim` disable styling/animation
+```mermaid
+flowchart LR
+  A[Jira issue] --> B[get-issue-json.sh]
+  B --> C[issue-json-to-md.py]
+  C --> D[docs/jira-exports/ISSUE/ISSUE.md]
+  D --> E[/jira-plan]
+  D --> F[/jira-review]
+  E --> G[Implementation plan]
+  F --> H[Review report appended]
+```
 
-Direct installers are also available:
+### Lifecycle
+
+1. Export ticket context once.
+2. Plan implementation against real code.
+3. Review implementation coverage against the same artifact.
+
+## Commands and behavior
+
+### `/jira-plan <ISSUE_KEY>`
+
+- Ensures `docs/jira-exports/<ISSUE_KEY>/<ISSUE_KEY>.md` exists (creates if missing).
+- Extracts scope, acceptance criteria, and constraints from the export.
+- Produces a codebase-specific implementation plan.
+- If implementation happens in-session, ends with reconciliation: `Implemented`, `Discussed`, `Open`.
+
+### `/jira-review <ISSUE_KEY>`
+
+- Documentation-only workflow.
+- Requires an existing issue markdown export.
+- Appends `## Review Report (YYYY-MM-DD HH:MM)` to the issue markdown.
+- Adds a requirement-level checklist with evidence and follow-up questions.
+- Does not modify source code.
+
+## Install options
+
+### Unified installer
+
+```bash
+./scripts/install-ai-integrations.sh
+./scripts/install-ai-integrations.sh --cursor
+./scripts/install-ai-integrations.sh --opencode --claude
+./scripts/install-ai-integrations.sh --all --force
+```
+
+### Direct installers
 
 - `./scripts/install-opencode-integration.sh`
 - `./scripts/install-claude-code-integration.sh`
 - `./scripts/install-cursor-integration.sh`
 
-All installers also support `--force`, `--quiet`, `--no-color`, and `--no-anim`.
+All installers support:
 
-## Workflow behavior
+- `--force` to reinstall when already present
+- `--quiet` for minimal logs
+- `--no-color` and `--no-anim` for plain output
 
-### `/jira-plan <ISSUE_KEY>`
+## Script reference
 
-- Ensures `docs/jira-exports/<ISSUE_KEY>/<ISSUE_KEY>.md` exists (creates if missing)
-- Extracts scope + acceptance criteria from issue markdown
-- Investigates the current codebase
-- Produces a codebase-specific implementation plan
-- If implementation occurs, ends with coverage reconciliation (`Implemented` / `Discussed` / `Open`)
+| Script | Purpose |
+|---|---|
+| `scripts/get-issue-md.sh` | Fetch issue JSON and convert to markdown with local assets |
+| `scripts/issue-json-to-md.py` | Render Jira ADF to markdown and download image attachments |
+| `scripts/get-issue-json.sh` | Fetch raw Jira issue JSON |
+| `scripts/get-issue-xml.sh` | Fetch Jira XML issue endpoint |
+| `scripts/export-issues-xml-bulk.sh` | Bulk XML export from issue key list |
+| `scripts/doctor.sh` | Validate dependencies, env vars, and integration install state |
+| `scripts/install-ai-integrations.sh` | Unified installer for OpenCode, Claude Code, and Cursor |
 
-### `/jira-review <ISSUE_KEY>`
+Most shell scripts support `--quiet`, `--no-color`, and `--no-anim`.
 
-- Documentation-only workflow
-- Requires existing issue markdown export
-- Appends `## Review Report (YYYY-MM-DD HH:MM)` to issue markdown
-- Adds checklist items for distinct actionable requirements with evidence/follow-ups
-- Does not modify source code
+<details>
+<summary><strong>Output layout</strong></summary>
 
-## Core scripts
+```text
+docs/
+  jira-exports/
+    PROJ-1234/
+      PROJ-1234.md
+      assets/
+        image-1.png
+        image-2.jpg
+```
 
-- `scripts/get-issue-md.sh`: fetch JSON -> convert markdown -> delete intermediate JSON
-- `scripts/issue-json-to-md.py`: rich Jira ADF to markdown rendering + image download
-- `scripts/get-issue-json.sh`: fetch raw Jira issue JSON
-- `scripts/get-issue-xml.sh`: fetch Jira XML export endpoint
-- `scripts/export-issues-xml-bulk.sh`: bulk XML export from issue key file
-- `scripts/doctor.sh`: checks local dependencies, Jira env vars, and installed AI integrations
+Keep each issue markdown file and its `assets/` directory together.
 
-Most shell scripts support output-control flags for cleaner terminal UX: `--quiet`, `--no-color`, and `--no-anim`.
-
-## Repository integration packages
-
-- OpenCode: `opencode/`
-- Claude Code: `claude-code/`
-- Cursor Skills: `cursor/skills/`
-
-## Notes
-
-- Keep each issue markdown and its `assets/` directory together.
-- `.env` and generated exports are git-ignored.
-- If XML endpoint auth fails for your tenant, use the JSON/markdown flow.
+</details>
 
 ## Troubleshooting
+
+> [!IMPORTANT]
+> If an integration command cannot find scripts, verify `JIRA_TICKET_TOOLS_DIR` is set and persisted in your shell profile.
 
 Run health checks:
 
@@ -125,7 +190,7 @@ Run health checks:
 ./scripts/doctor.sh
 ```
 
-Useful options:
+Useful variants:
 
 ```bash
 ./scripts/doctor.sh --provider cursor
@@ -133,15 +198,17 @@ Useful options:
 ./scripts/doctor.sh --provider cursor --no-color --no-anim
 ```
 
-The doctor script reports:
+Doctor checks:
 
-- missing dependencies (`bash`, `python3`, `curl`)
-- missing Jira auth vars (`JIRA_BASE`, `JIRA_EMAIL`, `JIRA_API_TOKEN`)
-- whether OpenCode, Claude Code, and Cursor integration files are installed
+- Required tools (`bash`, `python3`, `curl`)
+- Jira auth vars (`JIRA_BASE`, `JIRA_EMAIL`, `JIRA_API_TOKEN`)
+- Integration files for OpenCode, Claude Code, and Cursor
 
-## CI
+If your Jira XML endpoint is restricted in your tenant, use the JSON-to-markdown flow (`get-issue-md.sh`).
 
-GitHub Actions runs shell linting and script smoke tests on pushes/PRs.
+## CI and local quality checks
+
+CI runs shell linting and installer smoke tests on pushes and PRs.
 
 Run the same checks locally:
 
@@ -149,3 +216,19 @@ Run the same checks locally:
 bash ./scripts/run-shellcheck.sh
 bash ./scripts/ci-checks.sh
 ```
+
+## Contributing
+
+See `CONTRIBUTING.md` for OS-specific bootstrap and contributor workflows.
+
+## License
+
+MIT - see `LICENSE`.
+
+[url_repo]: https://github.com/TannerTitlow/jira-ticket-tools
+[url_ci]: https://github.com/TannerTitlow/jira-ticket-tools/actions/workflows/ci.yml
+[url_license]: ./LICENSE
+[badge_ci]: https://github.com/TannerTitlow/jira-ticket-tools/actions/workflows/ci.yml/badge.svg?branch=main
+[badge_license]: https://img.shields.io/badge/license-MIT-0b57d0
+[badge_platform]: https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20WSL-111827
+[badge_language]: https://img.shields.io/badge/language-bash%20%2B%20python3-0f766e
