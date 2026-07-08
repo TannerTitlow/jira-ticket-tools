@@ -136,3 +136,14 @@ The doctor script reports:
 - missing dependencies (`bash`, `python3`, `curl`)
 - missing Jira auth vars (`JIRA_BASE`, `JIRA_EMAIL`, `JIRA_API_TOKEN`)
 - whether OpenCode, Claude Code, and Cursor integration files are installed
+
+## CI
+
+GitHub Actions runs shell linting and script smoke tests on pushes/PRs.
+
+Run the same checks locally:
+
+```bash
+bash ./scripts/run-shellcheck.sh
+bash ./scripts/ci-checks.sh
+```

@@ -108,6 +108,15 @@ Run diagnostics if something is off:
 ./scripts/doctor.sh --provider cursor
 ```
 
+## Local quality checks
+
+Run the same checks used in CI:
+
+```bash
+bash ./scripts/ci-checks.sh
+bash ./scripts/run-shellcheck.sh
+```
+
 ## Updating integration templates
 
 When you update these template assets:
