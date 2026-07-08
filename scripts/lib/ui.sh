@@ -76,7 +76,7 @@ ui_error() {
 ui_spinner_wait() {
   local pid="$1"
   local label="$2"
-  local frames='|/-\'
+  local frames="|/-\\"
   local i=0
 
   if [[ "$UI_QUIET" == true ]]; then
