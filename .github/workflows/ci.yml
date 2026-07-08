@@ -14,16 +14,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.x'
+          node-version: '20'
+
+      - name: Run package checks
+        run: npm run check
 
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
       - name: Run shellcheck
-        run: bash ./scripts/run-shellcheck.sh
+        run: npm run lint:shell
 
-      - name: Run script and installer checks
-        run: bash ./scripts/ci-checks.sh
+      - name: Run package smoke tests
+        run: npm run smoke

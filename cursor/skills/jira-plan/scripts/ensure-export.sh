@@ -15,15 +15,12 @@ if [[ -f "$issue_md" ]]; then
   exit 0
 fi
 
-tools_dir="${JIRA_TICKET_TOOLS_DIR:-$HOME/jira-ticket-tools}"
-generator="${tools_dir}/scripts/get-issue-md.sh"
-
-if [[ ! -x "$generator" ]]; then
-  printf 'jira-ticket-tools script not found/executable: %s\n' "$generator" >&2
+if ! command -v jtt >/dev/null 2>&1; then
+  printf 'jira-ticket-tools CLI not found on PATH. Install the package so `jtt` is available.\n' >&2
   exit 1
 fi
 
 mkdir -p "$issue_dir"
-"$generator" "$issue_key" "$issue_md"
+jtt export "$issue_key" "$issue_md"
 
 printf 'Created issue export: %s\n' "$issue_md"

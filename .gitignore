@@ -1,6 +1,5 @@
 .env
-__pycache__/
-*.pyc
+node_modules/
 
 exports/**
 !exports/.gitkeep

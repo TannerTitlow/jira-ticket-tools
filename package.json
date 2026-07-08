@@ -1,0 +1,44 @@
+{
+  "name": "jira-ticket-tools",
+  "version": "0.1.0",
+  "description": "Cross-provider Jira planning/review integration toolkit",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TannerTitlow/jira-ticket-tools.git"
+  },
+  "homepage": "https://github.com/TannerTitlow/jira-ticket-tools",
+  "bugs": {
+    "url": "https://github.com/TannerTitlow/jira-ticket-tools/issues"
+  },
+  "keywords": [
+    "jira",
+    "ai",
+    "opencode",
+    "claude-code",
+    "cursor",
+    "developer-tools"
+  ],
+  "type": "commonjs",
+  "bin": {
+    "jtt": "bin/jtt.js"
+  },
+  "scripts": {
+    "check": "node --check src/cli.js && node --check src/render-issue-md.js && node bin/jtt.js help >/dev/null && node bin/jtt.js setup --help >/dev/null && node bin/jtt.js integrate --help >/dev/null && node bin/jtt.js export --help >/dev/null && node bin/jtt.js doctor --help >/dev/null && node bin/jtt.js uninstall --help >/dev/null",
+    "lint:shell": "bash -lc 'if ! command -v shellcheck >/dev/null 2>&1; then echo \"shellcheck not installed; skipping shell lint\"; exit 0; fi; shellcheck cursor/skills/jira-plan/scripts/ensure-export.sh cursor/skills/jira-review/scripts/require-export.sh'",
+    "smoke": "bash -lc 'tmp_home=$(mktemp -d) && HOME=\"$tmp_home\" node bin/jtt.js integrate all --quiet && HOME=\"$tmp_home\" node bin/jtt.js uninstall all --dry-run --quiet'"
+  },
+  "files": [
+    "bin",
+    "src",
+    "opencode",
+    "claude-code",
+    "cursor",
+    ".env.example",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -21,23 +21,23 @@ Keep changes practical, portable, and easy for teammates to adopt.
 ## Contribution principles
 
 - Keep integrations provider-agnostic and org-neutral.
-- Prefer clear CLI UX and deterministic script behavior.
+- Prefer clear CLI UX and deterministic command behavior.
 - Preserve `/jira-review` as documentation-only behavior.
 - Keep docs updated when commands, flags, or workflows change.
 
 ## Prerequisites
 
 - `git`
+- `node` (18+)
+- `pnpm`
 - `bash`
-- `python3`
-- `curl`
 - Jira API token
 - At least one AI tool: OpenCode, Claude Code, or Cursor
 
 ## Bootstrap by platform
 
 > [!TIP]
-> Set and persist `JIRA_TICKET_TOOLS_DIR` so integrations work from any project directory.
+> Use the `jtt` CLI for setup, integrations, exports, and troubleshooting.
 
 ### Linux/macOS (bash)
 
@@ -45,13 +45,13 @@ Keep changes practical, portable, and easy for teammates to adopt.
 git clone <repo-url>
 cd jira-ticket-tools
 
-cp .env.example .env
-# edit .env and set JIRA_BASE, JIRA_EMAIL, JIRA_API_TOKEN
+pnpm install
+pnpm link --global
 
-./scripts/install-ai-integrations.sh
-
-echo 'export JIRA_TICKET_TOOLS_DIR="$(pwd)"' >> ~/.bashrc
-source ~/.bashrc
+jtt setup \
+  --jira-base https://your-domain.atlassian.net \
+  --jira-email you@company.com \
+  --jira-api-token your-token
 ```
 
 ### macOS/Linux (zsh)
@@ -60,13 +60,13 @@ source ~/.bashrc
 git clone <repo-url>
 cd jira-ticket-tools
 
-cp .env.example .env
-# edit .env and set JIRA_BASE, JIRA_EMAIL, JIRA_API_TOKEN
+pnpm install
+pnpm link --global
 
-./scripts/install-ai-integrations.sh
-
-echo 'export JIRA_TICKET_TOOLS_DIR="$(pwd)"' >> ~/.zshrc
-source ~/.zshrc
+jtt setup \
+  --jira-base https://your-domain.atlassian.net \
+  --jira-email you@company.com \
+  --jira-api-token your-token
 ```
 
 ### Windows (PowerShell)
@@ -75,19 +75,13 @@ source ~/.zshrc
 git clone <repo-url>
 cd jira-ticket-tools
 
-Copy-Item .env.example .env
-# edit .env and set JIRA_BASE, JIRA_EMAIL, JIRA_API_TOKEN
+pnpm install
+pnpm link --global
 
-bash ./scripts/install-ai-integrations.sh
-
-[Environment]::SetEnvironmentVariable(
-  "JIRA_TICKET_TOOLS_DIR",
-  (Get-Location).Path,
-  "User"
-)
+jtt setup --jira-base https://your-domain.atlassian.net --jira-email you@company.com --jira-api-token your-token
 ```
 
-Restart terminal and your AI tool after setting env vars.
+Restart terminal and your AI tool after setup.
 
 ### Windows (WSL)
 
@@ -98,23 +92,23 @@ Use the Linux/macOS (bash) flow inside WSL.
 Use unified installer flags when needed:
 
 ```bash
-./scripts/install-ai-integrations.sh --cursor
-./scripts/install-ai-integrations.sh --opencode --claude
-./scripts/install-ai-integrations.sh --opencode --force
-./scripts/install-ai-integrations.sh --all --quiet
+jtt integrate cursor
+jtt integrate opencode --force
+jtt integrate claude --quiet
+jtt integrate all
 ```
-
-Or run provider scripts directly:
-
-- `./scripts/install-opencode-integration.sh`
-- `./scripts/install-claude-code-integration.sh`
-- `./scripts/install-cursor-integration.sh`
 
 Supported installer flags:
 
 - `--force` to reinstall even when already installed
 - `--quiet` for minimal logs
-- `--no-color --no-anim` for plain terminal output
+
+To remove templates during cleanup/testing:
+
+```bash
+jtt uninstall all --dry-run
+jtt uninstall all --remove-config
+```
 
 ## Verify your setup
 
@@ -133,8 +127,8 @@ For documentation-only reconciliation:
 If anything looks off, run diagnostics:
 
 ```bash
-./scripts/doctor.sh
-./scripts/doctor.sh --provider cursor
+jtt doctor
+jtt doctor --provider cursor
 ```
 
 ## Local quality checks
@@ -142,8 +136,9 @@ If anything looks off, run diagnostics:
 Run the same checks used by CI:
 
 ```bash
-bash ./scripts/ci-checks.sh
-bash ./scripts/run-shellcheck.sh
+pnpm run check
+pnpm run lint:shell
+pnpm run smoke
 ```
 
 ## Updating integration templates
@@ -162,5 +157,5 @@ When you change any integration template:
 Reinstall and restart your AI tool:
 
 ```bash
-./scripts/install-ai-integrations.sh --force
+jtt integrate all --force
 ```

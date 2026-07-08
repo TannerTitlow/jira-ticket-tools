@@ -39,5 +39,5 @@ End with a reconciliation checklist against `docs/jira-exports/ISSUE_KEY/ISSUE_K
 
 ## Notes
 
-- Script `$HOME/.cursor/skills/jira-plan/scripts/ensure-export.sh` uses `$JIRA_TICKET_TOOLS_DIR` if set, then falls back to `$HOME/jira-ticket-tools`.
+- Script `$HOME/.cursor/skills/jira-plan/scripts/ensure-export.sh` requires `jtt` on PATH and runs `jtt export`.
 - Keep output codebase-specific and avoid generic advice.
