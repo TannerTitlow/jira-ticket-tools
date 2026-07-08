@@ -60,6 +60,11 @@ JIRA_BASE="https://your-domain.atlassian.net"
 JIRA_EMAIL="you@company.com"
 JIRA_API_TOKEN="your-token"
 ```
+<div align="center">
+
+Need a token? Create one in [Atlassian account security](https://id.atlassian.com/manage-profile/security/api-tokens).
+
+</div>
 
 ### 2) Export one issue to markdown
 

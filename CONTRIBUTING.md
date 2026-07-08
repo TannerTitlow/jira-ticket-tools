@@ -162,5 +162,5 @@ When you change any integration template:
 Reinstall and restart your AI tool:
 
 ```bash
-./scripts/install-ai-integrations.sh
+./scripts/install-ai-integrations.sh --force
 ```
