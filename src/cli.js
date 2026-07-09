@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const readline = require("node:readline/promises");
+const { pathToFileURL } = require("node:url");
 const { spawnSync } = require("node:child_process");
 const { renderIssueMarkdownFromJson } = require("./render-issue-md");
 
@@ -11,8 +12,7 @@ const CONFIG_PATH = path.join(CONFIG_DIR, "config.env");
 const CONFIG_KEYS = [
   "JIRA_BASE",
   "JIRA_EMAIL",
-  "JIRA_API_TOKEN",
-  "JIRA_TICKET_TOOLS_DIR"
+  "JIRA_API_TOKEN"
 ];
 
 function print(text) {
@@ -90,9 +90,9 @@ function loadCwdEnvFile() {
 function getRuntimeConfig() {
   const cwdEnv = loadCwdEnvFile();
   return {
-    ...loadConfigFile(),
+    ...process.env,
     ...cwdEnv.values,
-    ...process.env
+    ...loadConfigFile()
   };
 }
 
@@ -170,6 +170,11 @@ function printMainHelp() {
   print("  uninstall    Remove installed AI integration templates");
   print("  help         Show this help");
   print("");
+  print("Flags:");
+  print("  --plain      Disable TUI and use plain output (supported commands)");
+  print("  --quiet      Minimize logs/output where supported");
+  print("  --help, -h   Show help for a command");
+  print("");
   print("Run `jtt <command> --help` for command-specific options.");
 }
 
@@ -187,10 +192,6 @@ async function promptForSetupValues(config) {
     {
       key: "JIRA_EMAIL",
       label: "Jira email:"
-    },
-    {
-      key: "JIRA_API_TOKEN",
-      label: "Jira API token:"
     }
   ];
 
@@ -212,6 +213,122 @@ async function promptForSetupValues(config) {
   }
 }
 
+async function promptHiddenValue(label) {
+  return new Promise((resolve, reject) => {
+    const stdin = process.stdin;
+    const stdout = process.stdout;
+    const wasRaw = Boolean(stdin.isRaw);
+    let answer = "";
+
+    const finish = (value) => {
+      stdin.removeListener("data", onData);
+      if (stdin.isTTY) {
+        stdin.setRawMode(wasRaw);
+      }
+      stdout.write("\n");
+      resolve(value.trim());
+    };
+
+    const fail = (error) => {
+      stdin.removeListener("data", onData);
+      if (stdin.isTTY) {
+        stdin.setRawMode(wasRaw);
+      }
+      stdout.write("\n");
+      reject(error);
+    };
+
+    const onData = (chunk) => {
+      const char = String(chunk);
+      if (char === "\r" || char === "\n") {
+        finish(answer);
+        return;
+      }
+      if (char === "\u0003") {
+        fail(new Error("Setup cancelled."));
+        return;
+      }
+      if (char === "\u0008" || char === "\u007f") {
+        if (answer.length > 0) {
+          answer = answer.slice(0, -1);
+          stdout.write("\b \b");
+        }
+        return;
+      }
+      if (char >= " ") {
+        answer += char;
+        stdout.write("*");
+      }
+    };
+
+    stdout.write(`${label} `);
+    stdin.resume();
+    if (stdin.isTTY) {
+      stdin.setRawMode(true);
+    }
+    stdin.on("data", onData);
+  });
+}
+
+async function promptForSetupValuesWithTui(config) {
+  const modulePath = pathToFileURL(path.join(__dirname, "setup-tui.mjs")).href;
+  const { runSetupTui } = await import(modulePath);
+  const result = await runSetupTui({
+    jiraBase: config.JIRA_BASE || "",
+    jiraEmail: config.JIRA_EMAIL || "",
+    jiraApiToken: config.JIRA_API_TOKEN || ""
+  });
+  if (result.status !== "success") {
+    return result;
+  }
+  config.JIRA_BASE = result.values.jiraBase;
+  config.JIRA_EMAIL = result.values.jiraEmail;
+  config.JIRA_API_TOKEN = result.values.jiraApiToken;
+  return result;
+}
+
+async function showSetupSummaryTui(payload) {
+  const modulePath = pathToFileURL(path.join(__dirname, "setup-tui.mjs")).href;
+  const { runSetupSummaryTui } = await import(modulePath);
+  await runSetupSummaryTui(payload);
+}
+
+async function showIntegrateSummaryTui(payload) {
+  const modulePath = pathToFileURL(path.join(__dirname, "setup-tui.mjs")).href;
+  const { runIntegrateSummaryTui } = await import(modulePath);
+  await runIntegrateSummaryTui(payload);
+}
+
+async function showDoctorSummaryTui(payload) {
+  const modulePath = pathToFileURL(path.join(__dirname, "setup-tui.mjs")).href;
+  const { runDoctorSummaryTui } = await import(modulePath);
+  await runDoctorSummaryTui(payload);
+}
+
+async function showUninstallSummaryTui(payload) {
+  const modulePath = pathToFileURL(path.join(__dirname, "setup-tui.mjs")).href;
+  const { runUninstallSummaryTui } = await import(modulePath);
+  await runUninstallSummaryTui(payload);
+}
+
+async function showConfigEditorTui(payload) {
+  const modulePath = pathToFileURL(path.join(__dirname, "setup-tui.mjs")).href;
+  const { runConfigEditorTui } = await import(modulePath);
+  return runConfigEditorTui(payload);
+}
+
+async function showExportInputTui(payload) {
+  const modulePath = pathToFileURL(path.join(__dirname, "setup-tui.mjs")).href;
+  const { runExportInputTui } = await import(modulePath);
+  return runExportInputTui(payload);
+}
+
+async function showExportFlowTui(payload) {
+  const modulePath = pathToFileURL(path.join(__dirname, "setup-tui.mjs")).href;
+  const { runExportFlowTui } = await import(modulePath);
+  return runExportFlowTui(payload);
+}
+
 async function commandSetup(args) {
   const { options } = parseOptions(args, {
     "--jira-base": "string",
@@ -219,6 +336,7 @@ async function commandSetup(args) {
     "--jira-api-token": "string",
     "--integrate": "string",
     "--non-interactive": "boolean",
+    "--plain": "boolean",
     "--force": "boolean",
     "--no-integrate": "boolean",
     "--quiet": "boolean",
@@ -227,17 +345,25 @@ async function commandSetup(args) {
   });
 
   if (options["--help"] || options["-h"]) {
-    print("Usage: jtt setup [options]");
+    print("jtt setup");
+    print("");
+    print("Usage:");
+    print("  jtt setup [options]");
+    print("");
+    print("Args:");
+    print("  (none)");
     print("");
     print("Options:");
-    print("  --jira-base <url>");
-    print("  --jira-email <email>");
-    print("  --jira-api-token <token>");
-    print("  --integrate <all|opencode|claude|cursor>   (default: all)");
-    print("  --non-interactive");
-    print("  --no-integrate");
-    print("  --force");
-    print("  --quiet");
+    print("  --jira-base <url>                       Jira base URL");
+    print("  --jira-email <email>                    Jira account email");
+    print("  --jira-api-token <token>                Jira API token");
+    print("  --integrate <all|opencode|claude|cursor> Install providers after setup (default: all)");
+    print("  --non-interactive                       Do not prompt for missing values");
+    print("  --plain                                 Disable TUI and use plain prompts/output");
+    print("  --no-integrate                          Skip integration install step");
+    print("  --force                                 Reinstall integration files");
+    print("  --quiet                                 Minimize command output");
+    print("  --help, -h                              Show help");
     return;
   }
 
@@ -252,13 +378,34 @@ async function commandSetup(args) {
   if (options["--jira-api-token"]) {
     next.JIRA_API_TOKEN = options["--jira-api-token"];
   }
-  next.JIRA_TICKET_TOOLS_DIR = REPO_ROOT;
+  const interactive = !options["--non-interactive"] && process.stdin.isTTY;
+  const useTui = interactive && !options["--plain"];
+
+  if (useTui) {
+    const setupResult = await promptForSetupValuesWithTui(next);
+    if (setupResult.status === "cancelled") {
+      printErr("Setup cancelled.");
+      process.exit(1);
+    }
+    if (setupResult.status === "auth_failed") {
+      process.exit(1);
+    }
+  }
 
   let missing = ["JIRA_BASE", "JIRA_EMAIL", "JIRA_API_TOKEN"].filter((key) => !next[key]);
-  if (missing.length > 0 && !options["--non-interactive"] && process.stdin.isTTY) {
+  if (missing.length > 0 && interactive && !useTui) {
     print("Missing Jira settings. Enter values to continue setup.");
     print("Create a token at: https://id.atlassian.com/manage-profile/security/api-tokens");
     await promptForSetupValues(next);
+    if (!next.JIRA_API_TOKEN) {
+      while (true) {
+        const value = await promptHiddenValue("Jira API token:");
+        if (value) {
+          next.JIRA_API_TOKEN = value;
+          break;
+        }
+      }
+    }
     missing = ["JIRA_BASE", "JIRA_EMAIL", "JIRA_API_TOKEN"].filter((key) => !next[key]);
   }
 
@@ -269,13 +416,26 @@ async function commandSetup(args) {
   }
 
   writeConfigFile(next);
-  print(`Saved config: ${CONFIG_PATH}`);
+
+  if (!useTui) {
+    print(`Saved config: ${CONFIG_PATH}`);
+  }
+
+  let integrateReport = null;
 
   if (!options["--no-integrate"]) {
     const provider = options["--integrate"] || "all";
-    runIntegrate(provider, {
+    integrateReport = runIntegrate(provider, {
       force: Boolean(options["--force"]),
-      quiet: Boolean(options["--quiet"])
+      quiet: Boolean(options["--quiet"] || useTui)
+    });
+  }
+
+  if (useTui) {
+    await showSetupSummaryTui({
+      configPath: CONFIG_PATH,
+      integrationReport: integrateReport,
+      skippedIntegration: Boolean(options["--no-integrate"])
     });
   }
 }
@@ -363,9 +523,7 @@ function installCursorIntegration(force) {
   return { status: "installed", message: `Installed Cursor templates to ${targetRoot}` };
 }
 
-function runIntegrate(provider, options = {}) {
-  const quiet = Boolean(options.quiet);
-  const force = Boolean(options.force);
+function collectIntegrateReport(provider, force) {
   const providers = provider === "all" ? ["opencode", "claude", "cursor"] : [provider];
   const installers = {
     opencode: installOpenCodeIntegration,
@@ -376,38 +534,69 @@ function runIntegrate(provider, options = {}) {
   let installed = 0;
   let skipped = 0;
   let failed = 0;
+  const results = [];
 
   for (const item of providers) {
     if (!installers[item]) {
-      printErr(`Unknown provider: ${item}`);
-      printErr("Valid values: all, opencode, claude, cursor");
-      process.exit(1);
+      const error = new Error(`Unknown provider: ${item}`);
+      error.code = "UNKNOWN_PROVIDER";
+      throw error;
     }
 
     const result = installers[item](force);
+    results.push({ provider: item, ...result });
     if (result.status === "installed") {
       installed += 1;
-      if (!quiet) {
-        print(result.message);
-      }
     } else if (result.status === "skipped") {
       skipped += 1;
-      if (!quiet) {
-        print(result.message);
-      }
     } else {
       failed += 1;
-      printErr(result.message);
     }
   }
 
-  if (!quiet || failed > 0) {
-    print(`Summary: installed=${installed}, skipped=${skipped}, failed=${failed}`);
+  return {
+    results,
+    installed,
+    skipped,
+    failed
+  };
+}
+
+function runIntegrate(provider, options = {}) {
+  const quiet = Boolean(options.quiet);
+  const force = Boolean(options.force);
+  let report;
+
+  try {
+    report = collectIntegrateReport(provider, force);
+  } catch (error) {
+    if (error && error.code === "UNKNOWN_PROVIDER") {
+      printErr(error.message);
+      printErr("Valid values: all, opencode, claude, cursor");
+      process.exit(1);
+    }
+    throw error;
   }
 
-  if (failed > 0) {
+  for (const result of report.results) {
+    if (result.status === "failed") {
+      printErr(result.message);
+      continue;
+    }
+    if (!quiet) {
+      print(result.message);
+    }
+  }
+
+  if (!quiet || report.failed > 0) {
+    print(`Summary: installed=${report.installed}, skipped=${report.skipped}, failed=${report.failed}`);
+  }
+
+  if (report.failed > 0) {
     process.exit(1);
   }
+
+  return report;
 }
 
 function removePath(targetPath) {
@@ -418,183 +607,386 @@ function removePath(targetPath) {
   return true;
 }
 
-function uninstallProvider(provider, quiet = false, dryRun = false) {
-  const removed = [];
-
-  const maybeRemove = (targetPath) => {
-    if (dryRun) {
-      return fs.existsSync(targetPath);
-    }
-    return removePath(targetPath);
-  };
-
+function getUninstallTargets(provider) {
   if (provider === "opencode") {
     const root = path.join(os.homedir(), ".config", "opencode");
-    if (maybeRemove(path.join(root, "commands", "jira-plan.md"))) {
-      removed.push("~/.config/opencode/commands/jira-plan.md");
-    }
-    if (maybeRemove(path.join(root, "commands", "jira-review.md"))) {
-      removed.push("~/.config/opencode/commands/jira-review.md");
-    }
-    if (maybeRemove(path.join(root, "skills", "jira-issue-implementation"))) {
-      removed.push("~/.config/opencode/skills/jira-issue-implementation/");
-    }
+    return [
+      { path: path.join(root, "commands", "jira-plan.md"), display: "~/.config/opencode/commands/jira-plan.md" },
+      { path: path.join(root, "commands", "jira-review.md"), display: "~/.config/opencode/commands/jira-review.md" },
+      {
+        path: path.join(root, "skills", "jira-issue-implementation"),
+        display: "~/.config/opencode/skills/jira-issue-implementation/"
+      }
+    ];
   }
 
   if (provider === "claude") {
     const root = path.join(os.homedir(), ".claude");
-    if (maybeRemove(path.join(root, "commands", "jira-plan.md"))) {
-      removed.push("~/.claude/commands/jira-plan.md");
-    }
-    if (maybeRemove(path.join(root, "commands", "jira-review.md"))) {
-      removed.push("~/.claude/commands/jira-review.md");
-    }
-    if (maybeRemove(path.join(root, "skills", "jira-issue-implementation"))) {
-      removed.push("~/.claude/skills/jira-issue-implementation/");
-    }
+    return [
+      { path: path.join(root, "commands", "jira-plan.md"), display: "~/.claude/commands/jira-plan.md" },
+      { path: path.join(root, "commands", "jira-review.md"), display: "~/.claude/commands/jira-review.md" },
+      { path: path.join(root, "skills", "jira-issue-implementation"), display: "~/.claude/skills/jira-issue-implementation/" }
+    ];
   }
 
-  if (provider === "cursor") {
-    const root = path.join(os.homedir(), ".cursor", "skills");
-    if (maybeRemove(path.join(root, "jira-plan"))) {
-      removed.push("~/.cursor/skills/jira-plan/");
-    }
-    if (maybeRemove(path.join(root, "jira-review"))) {
-      removed.push("~/.cursor/skills/jira-review/");
-    }
-  }
+  const root = path.join(os.homedir(), ".cursor", "skills");
+  return [
+    { path: path.join(root, "jira-plan"), display: "~/.cursor/skills/jira-plan/" },
+    { path: path.join(root, "jira-review"), display: "~/.cursor/skills/jira-review/" }
+  ];
+}
 
-  if (!quiet) {
-    if (removed.length === 0) {
-      print(`No ${provider} integration files found.`);
-    } else {
-      print(`${dryRun ? "Would remove" : "Removed"} ${provider} integration files:`);
-      for (const item of removed) {
-        print(`- ${item}`);
+function collectUninstallReport(target, options = {}) {
+  const dryRun = Boolean(options.dryRun);
+  const removeConfig = Boolean(options.removeConfig);
+  const providers = target === "all" ? ["opencode", "claude", "cursor"] : [target];
+  const validProviders = ["opencode", "claude", "cursor"];
+
+  const report = {
+    target,
+    dryRun,
+    removeConfig,
+    providers: [],
+    config: null,
+    affectedCount: 0,
+    untouchedCount: 0
+  };
+
+  for (const provider of providers) {
+    if (!validProviders.includes(provider)) {
+      const error = new Error(`Unknown provider: ${provider}`);
+      error.code = "UNKNOWN_PROVIDER";
+      throw error;
+    }
+
+    const affectedPaths = [];
+    for (const targetPath of getUninstallTargets(provider)) {
+      if (!fs.existsSync(targetPath.path)) {
+        continue;
       }
+      if (!dryRun) {
+        removePath(targetPath.path);
+      }
+      affectedPaths.push(targetPath.display);
     }
+
+    const foundCount = affectedPaths.length;
+    const status = foundCount > 0 ? (dryRun ? "would_remove" : "removed") : "not_found";
+    if (foundCount > 0) {
+      report.affectedCount += foundCount;
+    } else {
+      report.untouchedCount += 1;
+    }
+
+    report.providers.push({
+      provider,
+      status,
+      affectedPaths,
+      foundCount
+    });
+  }
+
+  if (removeConfig) {
+    const exists = fs.existsSync(CONFIG_PATH);
+    if (exists && !dryRun) {
+      removePath(CONFIG_PATH);
+    }
+    report.config = {
+      path: CONFIG_PATH,
+      status: exists ? (dryRun ? "would_remove" : "removed") : "not_found"
+    };
+    if (exists) {
+      report.affectedCount += 1;
+    }
+  }
+
+  return report;
+}
+
+function runUninstallPlain(report, quiet) {
+  if (quiet) {
+    return;
+  }
+
+  for (const providerResult of report.providers) {
+    if (providerResult.foundCount === 0) {
+      print(`No ${providerResult.provider} integration files found.`);
+      continue;
+    }
+
+    print(`${report.dryRun ? "Would remove" : "Removed"} ${providerResult.provider} integration files:`);
+    for (const item of providerResult.affectedPaths) {
+      print(`- ${item}`);
+    }
+  }
+
+  if (report.config) {
+    if (report.config.status === "not_found") {
+      print(`No config file found at: ${report.config.path}`);
+      return;
+    }
+    print(`${report.dryRun ? "Would remove" : "Removed"} config file: ${report.config.path}`);
   }
 }
 
-function commandUninstall(args) {
+async function commandUninstall(args) {
   const { options, positionals } = parseOptions(args, {
     "--remove-config": "boolean",
     "--dry-run": "boolean",
+    "--plain": "boolean",
     "--quiet": "boolean",
     "--help": "boolean",
     "-h": "boolean"
   });
 
   if (options["--help"] || options["-h"]) {
-    print("Usage: jtt uninstall [all|opencode|claude|cursor] [--remove-config] [--dry-run] [--quiet]");
+    print("jtt uninstall");
+    print("");
+    print("Usage:");
+    print("  jtt uninstall [provider] [options]");
+    print("");
+    print("Args:");
+    print("  provider                                all|opencode|claude|cursor (default: all)");
+    print("");
+    print("Options:");
+    print("  --remove-config                         Remove global config file too");
+    print("  --dry-run                               Show what would be removed only");
+    print("  --plain                                 Disable TUI and use plain output");
+    print("  --quiet                                 Minimize command output");
+    print("  --help, -h                              Show help");
     return;
   }
 
   const target = positionals[0] || "all";
   const quiet = Boolean(options["--quiet"]);
   const dryRun = Boolean(options["--dry-run"]);
-  const providers = target === "all" ? ["opencode", "claude", "cursor"] : [target];
-  for (const provider of providers) {
-    if (!["opencode", "claude", "cursor"].includes(provider)) {
-      printErr(`Unknown provider: ${provider}`);
+  let report;
+  try {
+    report = collectUninstallReport(target, {
+      dryRun,
+      removeConfig: Boolean(options["--remove-config"])
+    });
+  } catch (error) {
+    if (error && error.code === "UNKNOWN_PROVIDER") {
+      printErr(error.message);
       printErr("Valid values: all, opencode, claude, cursor");
       process.exit(1);
     }
-    uninstallProvider(provider, quiet, dryRun);
+    throw error;
   }
 
-  if (options["--remove-config"]) {
-    const removed = dryRun ? fs.existsSync(CONFIG_PATH) : removePath(CONFIG_PATH);
-    if (!quiet) {
-      if (removed) {
-        print(`${dryRun ? "Would remove" : "Removed"} config file: ${CONFIG_PATH}`);
-      } else {
-        print(`No config file found at: ${CONFIG_PATH}`);
-      }
-    }
+  const useTui = process.stdin.isTTY && !options["--plain"] && !quiet;
+  if (useTui) {
+    await showUninstallSummaryTui({ uninstallReport: report });
+    return;
   }
+
+  runUninstallPlain(report, quiet);
 }
 
-function commandIntegrate(args) {
+async function commandIntegrate(args) {
   const { options, positionals } = parseOptions(args, {
     "--force": "boolean",
+    "--plain": "boolean",
     "--quiet": "boolean",
     "--help": "boolean",
     "-h": "boolean"
   });
 
   if (options["--help"] || options["-h"]) {
-    print("Usage: jtt integrate [all|opencode|claude|cursor] [--force] [--quiet]");
+    print("jtt integrate");
+    print("");
+    print("Usage:");
+    print("  jtt integrate [provider] [options]");
+    print("");
+    print("Args:");
+    print("  provider                                all|opencode|claude|cursor (default: all)");
+    print("");
+    print("Options:");
+    print("  --force                                 Reinstall even if already installed");
+    print("  --plain                                 Disable TUI and use plain output");
+    print("  --quiet                                 Minimize command output");
+    print("  --help, -h                              Show help");
     return;
   }
 
   const provider = positionals[0] || "all";
+
+  const useTui = process.stdin.isTTY && !options["--plain"];
+
+  if (useTui) {
+    let report;
+    try {
+      report = collectIntegrateReport(provider, Boolean(options["--force"]));
+    } catch (error) {
+      if (error && error.code === "UNKNOWN_PROVIDER") {
+        printErr(error.message);
+        printErr("Valid values: all, opencode, claude, cursor");
+        process.exit(1);
+      }
+      throw error;
+    }
+
+    await showIntegrateSummaryTui({ integrationReport: report });
+    if (report.failed > 0) {
+      process.exit(1);
+    }
+    return;
+  }
+
   runIntegrate(provider, {
     force: Boolean(options["--force"]),
     quiet: Boolean(options["--quiet"])
   });
 }
 
-async function commandExport(args) {
-  const { options, positionals } = parseOptions(args, {
-    "--format": "string",
-    "--quiet": "boolean",
-    "--help": "boolean",
-    "-h": "boolean"
+function countImageAttachments(data) {
+  const attachments = data && data.fields && Array.isArray(data.fields.attachment)
+    ? data.fields.attachment
+    : [];
+  return attachments.filter((item) => {
+    const mimeType = String(item && item.mimeType ? item.mimeType : "").toLowerCase();
+    const filename = String(item && item.filename ? item.filename : "").toLowerCase();
+    return mimeType.startsWith("image/") || /\.(png|jpe?g|gif|bmp|webp|svg)$/.test(filename);
+  }).length;
+}
+
+function getDefaultExportDirectory(issueKey) {
+  return path.join("docs", "jira-exports", issueKey);
+}
+
+function resolveExportDestination(issueKey, format, outputDirectory) {
+  const normalizedIssueKey = String(issueKey || "").trim();
+  const normalizedFormat = String(format || "md").trim().toLowerCase();
+  const normalizedOutputDirectory = String(outputDirectory || "").trim() || getDefaultExportDirectory(normalizedIssueKey);
+  return {
+    outputDirectory: normalizedOutputDirectory,
+    outputPath: path.join(normalizedOutputDirectory, `${normalizedIssueKey}.${normalizedFormat}`)
+  };
+}
+
+async function promptToCreateDirectory(outputDirectory) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
   });
 
-  if (options["--help"] || options["-h"]) {
-    print("Usage: jtt export <ISSUE_KEY> [OUTPUT_FILE] [--format md|json|xml] [--quiet]");
-    return;
+  try {
+    while (true) {
+      const answer = (await rl.question(`Output directory does not exist: ${outputDirectory}. Create it? [y/N] `)).trim().toLowerCase();
+      if (answer === "y" || answer === "yes") {
+        return true;
+      }
+      if (!answer || answer === "n" || answer === "no") {
+        return false;
+      }
+    }
+  } finally {
+    rl.close();
+  }
+}
+
+function handleExportValidationError(error) {
+  if (!error || !error.code) {
+    throw error;
   }
 
-  const issueKey = positionals[0];
-  if (!issueKey) {
-    printErr("Usage: jtt export <ISSUE_KEY> [OUTPUT_FILE] [--format md|json|xml]");
-    process.exit(1);
-  }
-
-  const output = positionals[1];
-  const format = (options["--format"] || "md").toLowerCase();
-  if (!["md", "json", "xml"].includes(format)) {
-    printErr(`Invalid format: ${format}`);
+  if (error.code === "INVALID_FORMAT") {
+    printErr(error.message);
     printErr("Valid values: md, json, xml");
     process.exit(1);
+  }
+
+  if (error.code === "MISSING_CONFIG") {
+    printErr(error.message);
+    printErr("Run `jtt setup` to configure Jira access.");
+    process.exit(1);
+  }
+
+  if (error.code === "MISSING_ISSUE_KEY") {
+    printErr("Usage: jtt export <ISSUE_KEY> [OUTPUT_DIR] [--format md|json|xml] [--plain] [--quiet]");
+    process.exit(1);
+  }
+
+  if (error.code === "OUTPUT_DIR_MISSING") {
+    printErr(error.message);
+    printErr("Re-run and confirm directory creation, or create it manually first.");
+    process.exit(1);
+  }
+
+  throw error;
+}
+
+async function collectExportReport({ issueKey, outputDirectory, format, createOutputDirectory }, hooks = {}) {
+  const normalizedIssueKey = String(issueKey || "").trim();
+  if (!normalizedIssueKey) {
+    const error = new Error("Issue key is required.");
+    error.code = "MISSING_ISSUE_KEY";
+    throw error;
+  }
+
+  const normalizedFormat = String(format || "md").toLowerCase();
+  if (!["md", "json", "xml"].includes(normalizedFormat)) {
+    const error = new Error(`Invalid format: ${normalizedFormat}`);
+    error.code = "INVALID_FORMAT";
+    throw error;
   }
 
   const env = getRuntimeConfig();
   const required = ["JIRA_BASE", "JIRA_EMAIL", "JIRA_API_TOKEN"];
   const missing = required.filter((key) => !env[key]);
   if (missing.length > 0) {
-    printErr(`Missing Jira config: ${missing.join(", ")}`);
-    printErr("Run `jtt setup` to configure Jira access.");
-    process.exit(1);
+    const error = new Error(`Missing Jira config: ${missing.join(", ")}`);
+    error.code = "MISSING_CONFIG";
+    throw error;
   }
 
   const jiraBase = String(env.JIRA_BASE).replace(/\/$/, "");
+  const destination = resolveExportDestination(normalizedIssueKey, normalizedFormat, outputDirectory);
 
-  if (format === "json") {
-    const outputPath = output || path.join("docs", "jira-exports", issueKey, `${issueKey}.json`);
-    const url = `${jiraBase}/rest/api/3/issue/${issueKey}`;
-    await fetchToFile(url, outputPath, "application/json", env);
-    if (!options["--quiet"]) {
-      print(`Saved ${outputPath}`);
+  let createdOutputDirectory = false;
+  if (!fs.existsSync(destination.outputDirectory)) {
+    if (!createOutputDirectory) {
+      const error = new Error(`Output directory not found: ${destination.outputDirectory}`);
+      error.code = "OUTPUT_DIR_MISSING";
+      throw error;
     }
-    return;
+    ensureDir(destination.outputDirectory);
+    createdOutputDirectory = true;
+    hooks.onProgress?.("Prepare output", `Created ${destination.outputDirectory}`);
   }
 
-  if (format === "xml") {
-    const outputPath = output || path.join("docs", "jira-exports", issueKey, `${issueKey}.xml`);
-    const url = `${jiraBase}/si/jira.issueviews:issue-xml/${issueKey}/${issueKey}.xml`;
-    await fetchToFile(url, outputPath, "application/xml", env);
-    if (!options["--quiet"]) {
-      print(`Saved ${outputPath}`);
-    }
-    return;
+  const report = {
+    issueKey: normalizedIssueKey,
+    format: normalizedFormat,
+    outputDirectory: destination.outputDirectory,
+    outputPath: destination.outputPath,
+    createdOutputDirectory,
+    assetsDir: "",
+    downloadedAny: false,
+    imageAttachmentCount: 0,
+    warningCount: 0,
+    warnings: []
+  };
+
+  if (normalizedFormat === "json") {
+    hooks.onProgress?.("Fetch issue", `GET ${normalizedIssueKey} as JSON`);
+    const url = `${jiraBase}/rest/api/3/issue/${normalizedIssueKey}`;
+    await fetchToFile(url, destination.outputPath, "application/json", env);
+    hooks.onProgress?.("Write output", "Saving JSON export...");
+    return report;
   }
 
-  const outputPath = output || path.join("docs", "jira-exports", issueKey, `${issueKey}.md`);
-  const jsonUrl = `${jiraBase}/rest/api/3/issue/${issueKey}`;
+  if (normalizedFormat === "xml") {
+    hooks.onProgress?.("Fetch issue", `GET ${normalizedIssueKey} as XML`);
+    const url = `${jiraBase}/si/jira.issueviews:issue-xml/${normalizedIssueKey}/${normalizedIssueKey}.xml`;
+    await fetchToFile(url, destination.outputPath, "application/xml", env);
+    hooks.onProgress?.("Write output", "Saving XML export...");
+    return report;
+  }
+
+  hooks.onProgress?.("Fetch issue", `GET ${normalizedIssueKey} as JSON`);
+  const jsonUrl = `${jiraBase}/rest/api/3/issue/${normalizedIssueKey}`;
   const auth = Buffer.from(`${env.JIRA_EMAIL}:${env.JIRA_API_TOKEN}`).toString("base64");
   const response = await fetch(jsonUrl, {
     headers: {
@@ -607,65 +999,179 @@ async function commandExport(args) {
     throw new Error(`Jira request failed (${response.status} ${response.statusText})${details ? `: ${details.slice(0, 240)}` : ""}`);
   }
   const data = await response.json();
-  const result = await renderIssueMarkdownFromJson(data, outputPath, env, (message) => {
-    if (!options["--quiet"]) {
-      printErr(`Warning: ${message}`);
-    }
+  report.imageAttachmentCount = countImageAttachments(data);
+  hooks.onProgress?.(
+    "Render markdown",
+    report.imageAttachmentCount > 0
+      ? `Rendering description and downloading ${report.imageAttachmentCount} image attachment(s)...`
+      : "Rendering description..."
+  );
+
+  const result = await renderIssueMarkdownFromJson(data, destination.outputPath, env, (message) => {
+    report.warnings.push(message);
+    hooks.onWarn?.(message);
   });
 
-  print(`Saved ${result.outputPath}`);
-  if (result.downloadedAny && !options["--quiet"]) {
-    print(`Saved image assets in ${result.assetsDir}`);
+  hooks.onProgress?.("Write output", "Finalizing markdown export...");
+  report.outputPath = result.outputPath;
+  report.downloadedAny = Boolean(result.downloadedAny);
+  report.assetsDir = result.assetsDir;
+  report.warningCount = report.warnings.length;
+  return report;
+}
+
+function runExportPlain(report, quiet) {
+  if (report.format === "md") {
+    for (const warning of report.warnings) {
+      if (!quiet) {
+        printErr(`Warning: ${warning}`);
+      }
+    }
+    print(`Saved ${report.outputPath}`);
+    if (report.downloadedAny && !quiet) {
+      print(`Saved image assets in ${report.assetsDir}`);
+    }
+    return;
+  }
+
+  if (!quiet) {
+    print(`Saved ${report.outputPath}`);
   }
 }
 
-function commandDoctor(args) {
-  const { options } = parseOptions(args, {
-    "--provider": "string",
+async function commandExport(args) {
+  const { options, positionals } = parseOptions(args, {
+    "--format": "string",
+    "--plain": "boolean",
     "--quiet": "boolean",
     "--help": "boolean",
     "-h": "boolean"
   });
 
   if (options["--help"] || options["-h"]) {
-    print("Usage: jtt doctor [--provider opencode|claude|cursor] [--quiet]");
+    print("jtt export");
+    print("");
+    print("Usage:");
+    print("  jtt export <ISSUE_KEY> [OUTPUT_DIR] [options]");
+    print("");
+    print("Args:");
+    print("  ISSUE_KEY                               Jira issue key (for example PROJ-1234)");
+    print("  OUTPUT_DIR                              Optional output directory");
+    print("");
+    print("Options:");
+    print("  --format <md|json|xml>                  Export format (default: md)");
+    print("  --plain                                 Disable TUI and use plain output");
+    print("  --quiet                                 Minimize command output");
+    print("  --help, -h                              Show help");
     return;
   }
 
   const quiet = Boolean(options["--quiet"]);
-  const provider = options["--provider"];
-  const selectedProviders = provider ? [provider] : ["opencode", "claude", "cursor"];
-  for (const item of selectedProviders) {
-    if (!["opencode", "claude", "cursor"].includes(item)) {
-      printErr(`Invalid provider: ${item}`);
+  const useTui = process.stdin.isTTY && !options["--plain"] && !quiet;
+
+  let issueKey = positionals[0] || "";
+  let outputDirectory = positionals[1] || "";
+  let format = String(options["--format"] || "md").toLowerCase();
+  let createOutputDirectory = false;
+
+  if (useTui) {
+    const inputResult = await showExportInputTui({
+      initialValues: {
+        issueKey,
+        format,
+        outputDirectory
+      }
+    });
+    if (!inputResult || inputResult.status !== "submit") {
+      printErr("Export cancelled.");
       process.exit(1);
+    }
+    issueKey = inputResult.values.issueKey;
+    format = inputResult.values.format;
+    outputDirectory = inputResult.values.outputDirectory;
+    createOutputDirectory = Boolean(inputResult.values.createOutputDirectory);
+  } else if (process.stdin.isTTY) {
+    const maybeDestination = resolveExportDestination(issueKey, format, outputDirectory);
+    if (issueKey && ["md", "json", "xml"].includes(format) && !fs.existsSync(maybeDestination.outputDirectory)) {
+      createOutputDirectory = await promptToCreateDirectory(maybeDestination.outputDirectory);
+      if (!createOutputDirectory) {
+        printErr("Export cancelled.");
+        process.exit(1);
+      }
     }
   }
 
+  if (useTui) {
+    const flowResult = await showExportFlowTui({
+      exportValues: {
+        issueKey,
+        format,
+        outputDirectory
+      },
+      executor: async (onProgress, onWarn) => {
+        return collectExportReport(
+          {
+            issueKey,
+            outputDirectory,
+            format,
+            createOutputDirectory
+          },
+          { onProgress, onWarn }
+        );
+      }
+    });
+    if (!flowResult || flowResult.status !== "success") {
+      process.exit(1);
+    }
+    return;
+  }
+
+  let report;
+  try {
+    report = await collectExportReport({
+      issueKey,
+      outputDirectory,
+      format,
+      createOutputDirectory
+    });
+  } catch (error) {
+    handleExportValidationError(error);
+  }
+
+  runExportPlain(report, quiet);
+}
+
+function collectDoctorReport(provider) {
+  const selectedProviders = provider ? [provider] : ["opencode", "claude", "cursor"];
+  for (const item of selectedProviders) {
+    if (!["opencode", "claude", "cursor"].includes(item)) {
+      const error = new Error(`Invalid provider: ${item}`);
+      error.code = "INVALID_PROVIDER";
+      throw error;
+    }
+  }
+
+  const checks = [];
   let okCount = 0;
   let warnCount = 0;
   let failCount = 0;
 
-  const ok = (msg) => {
-    okCount += 1;
-    if (!quiet) {
-      print(`OK: ${msg}`);
+  const pushCheck = (status, message) => {
+    checks.push({ status, message });
+    if (status === "ok") {
+      okCount += 1;
+    } else if (status === "warn") {
+      warnCount += 1;
+    } else {
+      failCount += 1;
     }
-  };
-  const warn = (msg) => {
-    warnCount += 1;
-    print(`WARN: ${msg}`);
-  };
-  const fail = (msg) => {
-    failCount += 1;
-    printErr(`FAIL: ${msg}`);
   };
 
   const checkCommand = (name) => {
     if (commandExists(name)) {
-      ok(`Dependency found: ${name}`);
+      pushCheck("ok", `Dependency found: ${name}`);
     } else {
-      fail(`Missing dependency: ${name}`);
+      pushCheck("fail", `Missing dependency: ${name}`);
     }
   };
 
@@ -673,33 +1179,43 @@ function commandDoctor(args) {
   checkCommand("bash");
 
   const cwdEnv = loadCwdEnvFile();
-  if (cwdEnv.found) {
-    ok(`Loaded .env from ${cwdEnv.path}`);
+  const globalConfig = loadConfigFile();
+
+  if (fs.existsSync(CONFIG_PATH)) {
+    pushCheck("ok", `Global config found: ${CONFIG_PATH}`);
   } else {
-    warn(`No .env file at ${cwdEnv.path}`);
+    pushCheck("warn", `Global config not found: ${CONFIG_PATH} (run jtt setup to create it)`);
   }
 
-  const env = { ...loadConfigFile(), ...cwdEnv.values, ...process.env };
+  const env = { ...process.env, ...cwdEnv.values, ...globalConfig };
+  const getRuntimeSource = (key) => {
+    if (globalConfig[key]) {
+      return "global config";
+    }
+    if (cwdEnv.values[key]) {
+      return "local .env";
+    }
+    if (process.env[key]) {
+      return "process.env";
+    }
+    return null;
+  };
+
   const requiredVars = ["JIRA_BASE", "JIRA_EMAIL", "JIRA_API_TOKEN"];
   for (const key of requiredVars) {
-    if (env[key]) {
-      ok(`Environment variable set: ${key}`);
+    const source = getRuntimeSource(key);
+    if (env[key] && source) {
+      pushCheck("ok", `Runtime value set: ${key} (source: ${source})`);
     } else {
-      fail(`Environment variable missing: ${key}`);
+      pushCheck("fail", `Environment variable missing: ${key}`);
     }
-  }
-
-  if (env.JIRA_TICKET_TOOLS_DIR) {
-    ok(`JIRA_TICKET_TOOLS_DIR set: ${env.JIRA_TICKET_TOOLS_DIR}`);
-  } else {
-    warn("JIRA_TICKET_TOOLS_DIR is not set (optional with package install)");
   }
 
   const checkFile = (filePath, label) => {
     if (fs.existsSync(filePath)) {
-      ok(`${label}: ${filePath}`);
+      pushCheck("ok", `${label}: ${filePath}`);
     } else {
-      warn(`${label} not found: ${filePath}`);
+      pushCheck("warn", `${label} not found: ${filePath}`);
     }
   };
 
@@ -722,21 +1238,146 @@ function commandDoctor(args) {
     checkFile(path.join(os.homedir(), ".cursor", "skills", "jira-review", "scripts", "require-export.sh"), "Cursor skill script");
   }
 
-  print(`Summary: ${okCount} ok, ${warnCount} warnings, ${failCount} failures`);
-  if (failCount > 0) {
+  return {
+    provider: provider || "all",
+    checks,
+    okCount,
+    warnCount,
+    failCount
+  };
+}
+
+function runDoctorPlain(provider, quiet) {
+  let report;
+  try {
+    report = collectDoctorReport(provider);
+  } catch (error) {
+    if (error && error.code === "INVALID_PROVIDER") {
+      printErr(error.message);
+      process.exit(1);
+    }
+    throw error;
+  }
+
+  for (const check of report.checks) {
+    if (check.status === "ok") {
+      if (!quiet) {
+        print(`OK: ${check.message}`);
+      }
+      continue;
+    }
+    if (check.status === "warn") {
+      print(`WARN: ${check.message}`);
+      continue;
+    }
+    printErr(`FAIL: ${check.message}`);
+  }
+
+  print(`Summary: ${report.okCount} ok, ${report.warnCount} warnings, ${report.failCount} failures`);
+  if (report.failCount > 0) {
     process.exit(1);
   }
 }
 
-function commandConfig(args) {
-  const sub = args[0];
-  const rest = args.slice(1);
+async function commandDoctor(args) {
+  const { options } = parseOptions(args, {
+    "--provider": "string",
+    "--plain": "boolean",
+    "--quiet": "boolean",
+    "--help": "boolean",
+    "-h": "boolean"
+  });
+
+  if (options["--help"] || options["-h"]) {
+    print("jtt doctor");
+    print("");
+    print("Usage:");
+    print("  jtt doctor [options]");
+    print("");
+    print("Args:");
+    print("  (none)");
+    print("");
+    print("Options:");
+    print("  --provider <opencode|claude|cursor>     Restrict checks to one provider");
+    print("  --plain                                 Disable TUI and use plain output");
+    print("  --quiet                                 Minimize command output");
+    print("  --help, -h                              Show help");
+    return;
+  }
+
+  const provider = options["--provider"];
+  const useTui = process.stdin.isTTY && !options["--plain"] && !options["--quiet"];
+
+  if (useTui) {
+    let report;
+    try {
+      report = collectDoctorReport(provider);
+    } catch (error) {
+      if (error && error.code === "INVALID_PROVIDER") {
+        printErr(error.message);
+        process.exit(1);
+      }
+      throw error;
+    }
+
+    await showDoctorSummaryTui({ report });
+    print("");
+    if (report.failCount > 0) {
+      process.exit(1);
+    }
+    return;
+  }
+
+  runDoctorPlain(provider, Boolean(options["--quiet"]));
+}
+
+async function commandConfig(args) {
+  const { options, positionals } = parseOptions(args, {
+    "--plain": "boolean",
+    "--help": "boolean",
+    "-h": "boolean"
+  });
+  const sub = positionals[0];
+  const rest = positionals.slice(1);
   const config = loadConfigFile();
 
-  if (!sub || sub === "help" || sub === "--help" || sub === "-h") {
-    print("Usage: jtt config <path|get|set|validate>");
+  if (!sub && !options["--help"] && !options["-h"] && process.stdin.isTTY && !options["--plain"]) {
+    const result = await showConfigEditorTui({
+      configValues: {
+        JIRA_BASE: config.JIRA_BASE || "",
+        JIRA_EMAIL: config.JIRA_EMAIL || "",
+        JIRA_API_TOKEN: config.JIRA_API_TOKEN || ""
+      }
+    });
+
+    if (result && result.status === "done" && result.values) {
+      const next = {
+        ...config,
+        JIRA_BASE: result.values.JIRA_BASE || "",
+        JIRA_EMAIL: result.values.JIRA_EMAIL || "",
+        JIRA_API_TOKEN: result.values.JIRA_API_TOKEN || ""
+      };
+      writeConfigFile(next);
+    }
+    return;
+  }
+
+  if (!sub || options["--help"] || options["-h"] || sub === "help") {
+    print("jtt config");
+    print("");
+    print("Usage:");
+    print("  jtt config [subcommand] [options]");
+    print("");
+    print("Args:");
+    print("  subcommand                              path|get|set|validate (optional in TTY)");
+    print("");
+    print("Options:");
+    print("  --plain                                 Disable TUI and use plain output");
+    print("  --help, -h                              Show help");
     print("");
     print("Examples:");
+    print("  jtt config");
+    print("  jtt config --plain");
     print("  jtt config path");
     print("  jtt config get JIRA_BASE");
     print("  jtt config set JIRA_BASE https://your-domain.atlassian.net");
@@ -811,7 +1452,7 @@ async function run(argv) {
   }
 
   if (command === "integrate") {
-    commandIntegrate(args);
+    await commandIntegrate(args);
     return;
   }
 
@@ -821,17 +1462,17 @@ async function run(argv) {
   }
 
   if (command === "doctor" || command === "troubleshoot") {
-    commandDoctor(args);
+    await commandDoctor(args);
     return;
   }
 
   if (command === "uninstall") {
-    commandUninstall(args);
+    await commandUninstall(args);
     return;
   }
 
   if (command === "config") {
-    commandConfig(args);
+    await commandConfig(args);
     return;
   }
 

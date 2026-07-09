@@ -20,7 +20,7 @@ Otherwise:
 2. If `issue_md` does not exist, create it by running:
 
 ```bash
-mkdir -p "docs/jira-exports/$ARGUMENTS" && jtt export "$ARGUMENTS" "docs/jira-exports/$ARGUMENTS/$ARGUMENTS.md"
+mkdir -p "docs/jira-exports/$ARGUMENTS" && jtt export "$ARGUMENTS" "docs/jira-exports/$ARGUMENTS"
 ```
 
 3. Read `issue_md` and extract scope, acceptance criteria, and constraints.

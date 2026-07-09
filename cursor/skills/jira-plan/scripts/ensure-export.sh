@@ -21,6 +21,6 @@ if ! command -v jtt >/dev/null 2>&1; then
 fi
 
 mkdir -p "$issue_dir"
-jtt export "$issue_key" "$issue_md"
+jtt export "$issue_key" "$issue_dir"
 
 printf 'Created issue export: %s\n' "$issue_md"

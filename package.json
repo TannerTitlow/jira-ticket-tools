@@ -24,7 +24,7 @@
     "jtt": "bin/jtt.js"
   },
   "scripts": {
-    "check": "node --check src/cli.js && node --check src/render-issue-md.js && node bin/jtt.js help >/dev/null && node bin/jtt.js setup --help >/dev/null && node bin/jtt.js integrate --help >/dev/null && node bin/jtt.js export --help >/dev/null && node bin/jtt.js doctor --help >/dev/null && node bin/jtt.js uninstall --help >/dev/null",
+    "check": "node --check src/cli.js && node --check src/render-issue-md.js && node --check src/setup-tui.mjs && node bin/jtt.js help >/dev/null && node bin/jtt.js setup --help >/dev/null && node bin/jtt.js integrate --help >/dev/null && node bin/jtt.js export --help >/dev/null && node bin/jtt.js doctor --help >/dev/null && node bin/jtt.js uninstall --help >/dev/null",
     "lint:shell": "bash -lc 'if ! command -v shellcheck >/dev/null 2>&1; then echo \"shellcheck not installed; skipping shell lint\"; exit 0; fi; shellcheck cursor/skills/jira-plan/scripts/ensure-export.sh cursor/skills/jira-review/scripts/require-export.sh'",
     "smoke": "bash -lc 'tmp_home=$(mktemp -d) && HOME=\"$tmp_home\" node bin/jtt.js integrate all --quiet && HOME=\"$tmp_home\" node bin/jtt.js uninstall all --dry-run --quiet'"
   },
@@ -40,5 +40,10 @@
   ],
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "@inkjs/ui": "^2.0.0",
+    "ink": "^5.2.1",
+    "react": "^18.3.1"
   }
 }

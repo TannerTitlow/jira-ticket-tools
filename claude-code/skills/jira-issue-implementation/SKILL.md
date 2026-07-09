@@ -20,7 +20,7 @@ Turn Jira issue details into a concrete, codebase-specific implementation plan.
 3. If `issue_md` does not exist, generate it using:
 
 ```bash
-mkdir -p "docs/jira-exports/ISSUE_KEY" && jtt export "ISSUE_KEY" "docs/jira-exports/ISSUE_KEY/ISSUE_KEY.md"
+mkdir -p "docs/jira-exports/ISSUE_KEY" && jtt export "ISSUE_KEY" "docs/jira-exports/ISSUE_KEY"
 ```
 
 4. Read `issue_md` and extract:

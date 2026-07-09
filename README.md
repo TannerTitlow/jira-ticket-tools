@@ -15,44 +15,25 @@ Jira export automation for engineering workflows.
 
 Install one CLI, configure once, and enable `/jira-plan` + `/jira-review` across OpenCode, Claude Code, and Cursor.
 
-<strong>One source of truth for ticket context → planning → review.</strong>
-
 </div>
 
 <div align="center">
   <sub>
-    <a href="#why-this-exists">Why this exists</a> •
-    <a href="#quick-start">Quick start</a> •
-    <a href="#workflow-overview">Workflow overview</a> •
-    <a href="#commands-and-behavior">Commands and behavior</a> •
-    <a href="#cli-reference">CLI reference</a> •
+    <a href="#quick-start">Quick Start</a> •
+    <a href="#common-commands">Common Commands</a> •
+    <a href="#flags">Flags</a> •
+    <a href="#export-output">Export Output</a> •
+    <a href="#advanced-workflows">Advanced Workflows</a> •
     <a href="#troubleshooting">Troubleshooting</a> •
-    <a href="#ci-and-local-quality-checks">CI and local quality checks</a> •
+    <a href="#local-quality-checks">Local Quality Checks</a> •
     <a href="#contributing">Contributing</a> •
     <a href="#license">License</a>
   </sub>
 </div>
 
-## Why this exists
+## Quick Start
 
-> [!TIP]
-> If your implementation conversations keep drifting away from Jira acceptance criteria, this repo gives you a repeatable way to keep engineering and ticket intent aligned.
-
-Jira issues usually contain the best implementation context, but that context often gets fragmented across chat, PR comments, and ad hoc notes. `jira-ticket-tools` keeps ticket context in-repo as a durable markdown artifact, so planning and review workflows stay auditable, repeatable, and tool-agnostic.
-
-### At a glance
-
-- Export Jira issues into structured markdown with local asset links.
-- Reuse the same artifact across planning and review workflows.
-- Keep AI integrations synchronized across OpenCode, Claude Code, and Cursor.
-- Validate setup and integrations with doctor + CI smoke checks.
-
-## Quick start
-
-> [!NOTE]
-> Need full onboarding by OS? Use `CONTRIBUTING.md`.
-
-### 1) Install the CLI
+### 1) Install
 
 ```bash
 pnpm add -g jira-ticket-tools
@@ -60,133 +41,58 @@ pnpm add -g jira-ticket-tools
 
 Also works with `npm i -g jira-ticket-tools` or `bun add -g jira-ticket-tools`.
 
-Or run without global install:
-
-```bash
-pnpm dlx jira-ticket-tools@latest help
-```
-
-### 2) Configure Jira auth + integrate AI tools
+### 2) Run setup
 
 ```bash
 jtt setup
 ```
 
-or non-interactive:
+- Uses TUI by default in interactive terminals.
+- Use `jtt setup --plain` for plain mode.
+- Need a token? Create one in [Atlassian account security](https://id.atlassian.com/manage-profile/security/api-tokens).
 
-```bash
-jtt setup \
-  --jira-base https://your-domain.atlassian.net \
-  --jira-email you@company.com \
-  --jira-api-token your-token
-```
-
-Need a token? Create one in [Atlassian account security](https://id.atlassian.com/manage-profile/security/api-tokens).
-
-### 3) Run commands in your AI tool
+### 3) Use in your AI tool
 
 ```text
 /jira-plan PROJ-1234
 /jira-review PROJ-1234
 ```
 
-### 4) Optional manual export
+`/jira-plan` will create `docs/jira-exports/<ISSUE_KEY>/<ISSUE_KEY>.md` automatically if needed.
+
+## Common Commands
+
+For most users, these are the only commands needed day to day:
 
 ```bash
-jtt export PROJ-1234 ./docs/jira-exports/PROJ-1234/PROJ-1234.md
-```
+# initial setup
+jtt setup
 
-> [!TIP]
-> You can start with `/jira-plan` even if no markdown export exists yet. The command can create `docs/jira-exports/<ISSUE_KEY>/<ISSUE_KEY>.md` on demand.
-
-## Workflow overview
-
-```mermaid
-flowchart LR
-  A["User runs /jira-plan ISSUE_KEY"] --> B{"Export exists?"}
-  B -- "Yes" --> C["Read docs/jira-exports/ISSUE/ISSUE.md"]
-  B -- "No" --> D["Auto-export via jtt export"]
-  D --> C
-  C --> E["Return implementation plan"]
-  C --> F["User runs /jira-review ISSUE_KEY"]
-  F --> G["Append review report to issue markdown"]
-
-  H["Manual export path (optional)"] --> I["jtt export ISSUE_KEY"]
-  I --> C
-```
-
-### Lifecycle
-
-1. Start with `/jira-plan` (typical path).
-2. Auto-export happens only when needed.
-3. `/jira-review` appends coverage status to the same artifact.
-4. Manual export scripts remain available for standalone usage.
-
-## Commands and behavior
-
-### `/jira-plan <ISSUE_KEY>`
-
-- Ensures `docs/jira-exports/<ISSUE_KEY>/<ISSUE_KEY>.md` exists (creates if missing via `jtt export`).
-- Extracts scope, acceptance criteria, and constraints from the export.
-- Produces a codebase-specific implementation plan.
-- If implementation happens in-session, ends with reconciliation: `Implemented`, `Discussed`, `Open`.
-
-### `/jira-review <ISSUE_KEY>`
-
-- Documentation-only workflow.
-- Requires an existing issue markdown export.
-- Appends `## Review Report (YYYY-MM-DD HH:MM)` to the issue markdown.
-- Adds a requirement-level checklist with evidence and follow-up questions.
-- Does not modify source code.
-
-## CLI reference
-
-### Setup + integration
-
-```bash
-jtt setup --jira-base https://your-domain.atlassian.net --jira-email you@company.com --jira-api-token your-token
-jtt integrate
-jtt integrate cursor --force
-jtt integrate opencode --quiet
-```
-
-### Config
-
-```bash
-jtt config path
-jtt config get JIRA_BASE
-jtt config set JIRA_EMAIL you@company.com
-jtt config validate
-```
-
-### Manual exports
-
-```bash
+# planning/review support
 jtt export PROJ-1234
-jtt export PROJ-1234 ./docs/jira-exports/PROJ-1234/PROJ-1234.md
-jtt export PROJ-1234 --format json
-jtt export PROJ-1234 --format xml
-```
-
-### Troubleshooting
-
-```bash
 jtt doctor
-jtt doctor --provider cursor
-jtt troubleshoot --quiet
+
+# reinstall integrations after updates
+jtt integrate all
 ```
 
-### Uninstall integrations
+## Flags
 
-```bash
-jtt uninstall
-jtt uninstall cursor
-jtt uninstall all --dry-run
-jtt uninstall all --remove-config
-```
+Common flags supported by multiple commands:
 
-<details>
-<summary><strong>Output layout</strong></summary>
+- `--plain` disable TUI and use plain output
+- `--quiet` minimize logs/output where supported
+- `--help` / `-h` show command help
+
+Use `jtt <command> --help` for command-specific args and options.
+
+## Export Output
+
+- Default export directory: `docs/jira-exports/<ISSUE_KEY>/`
+- Exported filename is always enforced as `<ISSUE_KEY>.<FORMAT>`
+- Markdown exports may include `assets/` for downloaded images
+
+Example:
 
 ```text
 docs/
@@ -194,42 +100,45 @@ docs/
     PROJ-1234/
       PROJ-1234.md
       assets/
-        image-1.png
-        image-2.jpg
 ```
 
-Keep each issue markdown file and its `assets/` directory together.
+## Advanced Workflows
 
-</details>
+Use these when you need non-default behavior:
+
+```bash
+# non-interactive setup
+jtt setup --jira-base https://your-domain.atlassian.net --jira-email you@company.com --jira-api-token your-token
+
+# config management
+jtt config
+jtt config get JIRA_BASE
+jtt config set JIRA_EMAIL you@company.com
+
+# alternate export format/output directory
+jtt export PROJ-1234 ./docs/jira-exports/custom-dir --format json
+
+# provider-specific checks/cleanup
+jtt doctor --provider cursor
+jtt uninstall cursor --dry-run
+```
+
+Runtime config precedence:
+`~/.config/jira-ticket-tools/config.env` (highest) -> local `.env` -> shell `process.env`.
+
+For complete command details, run `jtt <command> --help`.
 
 ## Troubleshooting
 
-Run health checks:
+Start with:
 
 ```bash
 jtt doctor
 ```
 
-Useful variants:
-
-```bash
-jtt doctor --provider cursor
-jtt doctor --provider opencode --quiet
-```
-
-Doctor checks:
-
-- Required tools (`node`, `bash`)
-- Jira auth vars (`JIRA_BASE`, `JIRA_EMAIL`, `JIRA_API_TOKEN`)
-- Integration files for OpenCode, Claude Code, and Cursor
-
 If your Jira XML endpoint is restricted in your tenant, use markdown export (`jtt export <ISSUE_KEY>`).
 
-## CI and local quality checks
-
-CI runs package checks, shell linting for Cursor helper scripts, and CLI smoke tests.
-
-Run the same checks locally:
+## Local Quality Checks
 
 ```bash
 npm run check
@@ -239,7 +148,7 @@ npm run smoke
 
 ## Contributing
 
-See `CONTRIBUTING.md` for OS-specific bootstrap and contributor workflows.
+See `CONTRIBUTING.md` for contributor setup and template update workflow.
 
 ## License
 
