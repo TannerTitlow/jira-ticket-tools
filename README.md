@@ -36,10 +36,8 @@ Install one CLI, configure once, and enable `/jira-plan` + `/jira-review` across
 ### 1) Install
 
 ```bash
-pnpm add -g jira-ticket-tools
+npm i -g jira-ticket-tools
 ```
-
-Also works with `npm i -g jira-ticket-tools` or `bun add -g jira-ticket-tools`.
 
 ### 2) Run setup
 
